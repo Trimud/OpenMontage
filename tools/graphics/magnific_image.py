@@ -173,7 +173,7 @@ class MagnificImage(MagnificTool):
 
         payload: dict[str, Any] = {
             "prompt": inputs["prompt"],
-            "aspect_ratio": inputs.get("aspect_ratio"),
+            "aspect_ratio": mag.normalize_ratio(inputs.get("aspect_ratio"), _ASPECT_RATIOS),
         }
         extra: dict[str, Any] = {
             "prompt": inputs["prompt"],

@@ -167,6 +167,25 @@ def as_input(value: str, *, max_bytes: int = MAX_INLINE_BYTES) -> str:
     return value
 
 
+def normalize_ratio(value: Optional[str], allowed: list[str]) -> Optional[str]:
+    """Accept a plain "16:9"/"16x9" ratio and resolve it to Magnific's own name.
+
+    The selectors pass `aspect_ratio` as a free-form hint (image_selector.py
+    declares it as an untyped string), so a caller routed through one would
+    otherwise send "16:9" and get an HTTP 400. Magnific's names all end in
+    `_<w>_<h>`, so the mapping is derived from the enum rather than duplicated
+    in a table that could drift from it.
+    """
+    if not value or value in allowed:
+        return value
+    normalized = value.strip().lower().replace("x", ":").replace("/", ":")
+    if ":" not in normalized:
+        return value
+    w, _, h = normalized.partition(":")
+    matches = [name for name in allowed if name.endswith(f"_{w.strip()}_{h.strip()}")]
+    return matches[0] if len(matches) == 1 else value
+
+
 def submit(path: str, payload: dict[str, Any], *, timeout: int = 60) -> str:
     """POST a generation request and return its task_id.
 

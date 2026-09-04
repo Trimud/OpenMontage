@@ -216,7 +216,7 @@ class MagnificVideo(MagnificTool):
         payload: dict[str, Any] = {
             "prompt": inputs["prompt"],
             "duration": inputs.get("duration"),
-            "aspect_ratio": inputs.get("aspect_ratio"),
+            "aspect_ratio": mag.normalize_ratio(inputs.get("aspect_ratio"), _ASPECT_RATIOS),
             "camera_fixed": inputs.get("camera_fixed"),
             "seed": seed,
         }

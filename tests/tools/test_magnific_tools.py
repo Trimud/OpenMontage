@@ -376,3 +376,101 @@ def test_video_always_sends_a_reproducible_seed():
     for inputs in ({}, {"seed": -1}):
         seed = tool._seed(inputs)
         assert isinstance(seed, int) and 0 <= seed <= 4294967295
+
+
+# --- Registry + selector routing (docs/PR_REVIEW_GUIDE.md "New Provider or Tool"
+#     minimum coverage: registry discovery, status behavior, selector routing).
+
+@pytest.mark.parametrize("tool_cls", ALL_TOOLS)
+def test_registry_discovers_every_magnific_tool(tool_cls):
+    from tools.tool_registry import registry
+
+    registry.ensure_discovered()
+    assert registry.get(tool_cls.name) is not None, f"{tool_cls.name} is not discoverable"
+
+
+def test_registry_does_not_register_the_abstract_base():
+    from tools.tool_registry import registry
+
+    registry.ensure_discovered()
+    registered = [n for n in registry.list_all() if "magnific" in n]
+    assert len(registered) == len(ALL_TOOLS)
+    assert not any(n.lower() == "magnifictool" for n in registry.list_all())
+
+
+@pytest.mark.parametrize(
+    "capability, tool_name",
+    [
+        ("video_generation", "magnific_video"),
+        ("image_generation", "magnific_image"),
+        ("music_generation", "magnific_music"),
+        ("image_upscale", "magnific_upscale"),
+    ],
+)
+def test_selectors_can_route_to_magnific(capability, tool_name):
+    # Selectors auto-discover by capability (video_selector.py:252), so a wrong
+    # capability string would silently make the tool unroutable.
+    from tools.tool_registry import registry
+
+    registry.ensure_discovered()
+    found = registry.get_by_capability(capability)
+    names = [getattr(t, "name", t) for t in found]
+    assert tool_name in names, f"{tool_name} not reachable via capability {capability!r}"
+
+
+@pytest.mark.parametrize(
+    "ratio, expected",
+    [
+        ("16:9", "widescreen_16_9"),
+        ("9:16", "social_story_9_16"),
+        ("1:1", "square_1_1"),
+        ("16x9", "widescreen_16_9"),
+        ("widescreen_16_9", "widescreen_16_9"),
+    ],
+)
+def test_selector_style_aspect_ratio_hints_are_normalized(ratio, expected):
+    # image_selector declares aspect_ratio as a free-form string hint, so a
+    # routed call arrives as "16:9" rather than Magnific's own name.
+    assert mag.normalize_ratio(ratio, magnific_image._ASPECT_RATIOS) == expected
+    assert mag.normalize_ratio(ratio, magnific_video._ASPECT_RATIOS) == expected
+
+
+def test_unknown_aspect_ratio_is_left_alone_for_the_api_to_reject():
+    # Guessing would be worse than a clear API error: 21:9 genuinely has no
+    # image equivalent in Magnific's vocabulary.
+    assert mag.normalize_ratio("7:3", magnific_image._ASPECT_RATIOS) == "7:3"
+    assert mag.normalize_ratio("21:9", magnific_image._ASPECT_RATIOS) == "21:9"
+    assert mag.normalize_ratio("21:9", magnific_video._ASPECT_RATIOS) == "film_horizontal_21_9"
+
+
+@pytest.mark.parametrize("tool_cls", ALL_TOOLS)
+def test_status_tracks_the_credential(monkeypatch, tool_cls):
+    monkeypatch.setenv(mag.ENV_KEY, "k")
+    assert tool_cls().get_status().value == "available"
+    monkeypatch.delenv(mag.ENV_KEY)
+    assert tool_cls().get_status().value == "unavailable"
+
+
+@pytest.mark.parametrize("tool_cls", ALL_TOOLS)
+def test_install_instructions_name_the_env_var(tool_cls):
+    # The provider menu shows this text when the tool is unavailable.
+    assert mag.ENV_KEY in tool_cls().install_instructions
+
+
+def test_no_heavyweight_imports_at_module_import_time():
+    # The registry imports every tool module to build its catalog, so a module
+    # -level `import requests` would put network-stack import cost in discovery.
+    import ast
+
+    for path in (
+        "tools/_magnific.py",
+        "tools/video/magnific_video.py",
+        "tools/graphics/magnific_image.py",
+        "tools/audio/magnific_audio.py",
+        "tools/enhancement/magnific_upscale.py",
+    ):
+        tree = ast.parse(Path(path).read_text())
+        top_level = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
+        names = {a.name.split(".")[0] for n in top_level if isinstance(n, ast.Import) for a in n.names}
+        names |= {n.module.split(".")[0] for n in top_level if isinstance(n, ast.ImportFrom) and n.module}
+        assert "requests" not in names, f"{path} imports requests at module level"
