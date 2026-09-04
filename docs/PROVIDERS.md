@@ -985,7 +985,7 @@ Gen-3 Alpha Turbo and Gen-4 Aleph were removed from the Runway API on
 > **One key across image, video, upscaling, and audio.** Magnific (formerly the Freepik API) fronts Mystic, Flux 2, Seedream 5, Seedance 2, Kling, Veo 3.1, WAN, LTX, Runway, Hailuo, PixVerse, ElevenLabs Music, and the Magnific upscalers. It is the broadest single-key surface in this table — the natural alternative to Higgsfield when you want stills, clips, upscaling, and audio behind one credential.
 
 **Tools unlocked:** `magnific_image`, `magnific_video`, `magnific_upscale`, `magnific_music`, `magnific_sound_effects`, `magnific_audio_isolation`
-**Env var:** `MAGNIFIC_API_KEY` (optional: `MAGNIFIC_WEBHOOK_URL`)
+**Env var:** `MAGNIFIC_API_KEY`
 
 #### Setup
 

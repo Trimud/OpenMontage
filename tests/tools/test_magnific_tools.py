@@ -270,12 +270,12 @@ def test_poll_reports_a_failed_task(monkeypatch):
         mag.poll("/v1/ai/x", "t1")
 
 
-def test_webhook_url_prefers_the_explicit_input(monkeypatch):
-    monkeypatch.setenv("MAGNIFIC_WEBHOOK_URL", "https://env.example/hook")
-    assert mag.webhook_url({"webhook_url": "https://call.example/hook"}) == "https://call.example/hook"
-    assert mag.webhook_url({}) == "https://env.example/hook"
-    monkeypatch.delenv("MAGNIFIC_WEBHOOK_URL")
-    assert mag.webhook_url({}) is None
+def test_webhook_is_opt_in_per_call_only():
+    # There is no ambient webhook env var: an env-wide default would make every
+    # generation POST to a URL nothing in this repo listens on, and the tools
+    # block on polling regardless.
+    assert not hasattr(mag, "webhook_url")
+    assert "MAGNIFIC_WEBHOOK" not in Path(".env.example").read_text()
 
 
 @pytest.mark.parametrize("tool_cls", ALL_TOOLS)

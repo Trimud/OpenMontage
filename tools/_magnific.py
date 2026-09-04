@@ -298,11 +298,6 @@ def download(url: str, dest: str | Path, *, timeout: int = 300) -> Downloaded:
     return Downloaded(out, content_type.split(";", 1)[0].strip())
 
 
-def webhook_url(inputs: dict[str, Any]) -> Optional[str]:
-    """Explicit per-call webhook_url wins; otherwise MAGNIFIC_WEBHOOK_URL."""
-    return inputs.get("webhook_url") or os.environ.get("MAGNIFIC_WEBHOOK_URL") or None
-
-
 class MagnificTool(BaseTool):
     """Shared contract for every Magnific-backed tool.
 
@@ -355,7 +350,7 @@ class MagnificTool(BaseTool):
             return self._unconfigured()
 
         start = time.time()
-        payload = {**payload, "webhook_url": webhook_url(inputs)}
+        payload = {**payload, "webhook_url": inputs.get("webhook_url")}
         base = Path(inputs.get("output_path") or self.default_output())
         try:
             urls = run(endpoint, payload, status_path=status_path, max_wait=self._max_wait(inputs))
